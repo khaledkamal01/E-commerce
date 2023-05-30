@@ -1,22 +1,59 @@
-import 'package:ecommerce/Welcomeback.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
 import 'package:flutter_svg/svg.dart';
-
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 import 'package:flutter/foundation.dart';
 
-class Home extends StatefulWidget {
-  Home({Key? key}) : super(key: key);
+Future<List<Photo>> fetchPhotos(http.Client client) async {
+  final response =
+      await client.get(Uri.parse('https://fakestoreapi.com/products'));
 
-  @override
-  State<Home> createState() => _HomeState();
+  return compute(parsePhotos, response.body);
 }
 
-class _HomeState extends State<Home> {
+List<Photo> parsePhotos(String responseBody) {
+  final parsed = jsonDecode(responseBody).cast<Map<String, dynamic>>();
 
+  return parsed.map<Photo>((json) => Photo.fromJson(json)).toList();
+}
 
+class Photo {
+  final int id;
+  final String title;
+  final String image;
+
+  const Photo({
+    required this.id,
+    required this.title,
+    required this.image,
+  });
+
+  factory Photo.fromJson(Map<String, dynamic> json) {
+    return Photo(
+      id: json['id'] as int,
+      title: json['title'] as String,
+      image: json['image'] as String,
+    );
+  }
+}
+
+class ApiTest extends StatefulWidget {
+  ApiTest({Key? key}) : super(key: key);
+
+  @override
+  State<ApiTest> createState() => _ApiTestState();
+}
+
+class _ApiTestState extends State<ApiTest> {
+  late Future<List<Photo>> photos ;
+
+  @override
+  void initState() {
+    photos = fetchPhotos(http.Client());
+
+    super.initState();
+  }
 
   Widget build(BuildContext context) {
     return Scaffold(
@@ -344,135 +381,101 @@ class _HomeState extends State<Home> {
             ),
           ),
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: Row(
-              children: [
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Row(children: [
                 Expanded(
-                  child: Container(
-                      height: 140.0,
-                      child: StreamBuilder<QuerySnapshot>(
-                        stream: FirebaseFirestore.instance
-                            .collection("products")
-                            .snapshots(),
-                        builder: (BuildContext context,
-                            AsyncSnapshot<QuerySnapshot> snapshot) {
-                          if (snapshot.connectionState ==
-                              ConnectionState.waiting) {
-                            return Center(child: CircularProgressIndicator());
-                          } else if (snapshot.hasError) {
-                            return Text('Error: ${snapshot.error}');
-                          } else {
-                            if (snapshot.data == null ||
-                                snapshot.data!.docs.isEmpty) {
-                              return Text('No data available');
-                            } else {
-                              return Container(
-                                // Adjust the width as needed
-                                child: ListView.separated(
-                                  shrinkWrap: true,
-                                  scrollDirection: Axis.horizontal,
-                                  itemBuilder: (context, index) {
-                                    final doc = snapshot.data!.docs[index];
-
-                                    final image = doc['Image'] ?? '';
-                                    final name = doc['name'] ?? '';
-                                    final price = doc['price'] ?? '';
-
-                                    return Column(
+                    child: Container(
+                        height: 140.0,
+                        child: Container(
+                          child: FutureBuilder(
+                              future: photos,
+                              builder: (BuildContext context,
+                              AsyncSnapshot<dynamic> snapshot) {
+                            if (snapshot.connectionState ==
+                                ConnectionState.waiting) {
+                              return Center(
+                                child: CircularProgressIndicator(),
+                              );
+                            } else if (snapshot.hasError) {
+                              return Center(
+                                child: Text('Error: ${snapshot.error}'),
+                              );
+                            } else if (snapshot.hasData) {
+                              List<Photo> photos = snapshot.data!;
+                              return ListView.separated(
+                                shrinkWrap: true,
+                                scrollDirection: Axis.horizontal,
+                                itemBuilder: (context, index) {
+                                  Photo photo = photos[index];
+                                  return Container(
+                                    width: 100,
+                                    child: Column(
                                       children: [
                                         Container(
                                           height: 100,
                                           width: 100,
                                           decoration: BoxDecoration(
                                             image: DecorationImage(
-                                              image: NetworkImage(image),
+                                              image: NetworkImage(photo.image),
                                               fit: BoxFit.cover,
                                             ),
                                           ),
                                         ),
-                                        Text(name),
-                                        Text('Price: $price'),
+                                        SizedBox(height: 8),
+                                        Text(photo.title,maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,),
                                       ],
-                                    );
-                                  },
-                                  separatorBuilder: (context, index) =>
-                                      SizedBox(width: 20.0),
-                                  itemCount: snapshot.data!.docs.length,
-                                ),
+                                    ),
+                                  );
+                                },
+                                separatorBuilder: (context, index) =>
+
+                                    SizedBox(width: 20.0),
+                                itemCount: photos.length,
+                              );
+                            } else {
+                              return Center(
+                                child: Text('No data available.'),
                               );
                             }
-                          }
-                        },
-                      )),
-                ),
-              ],
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: Container(
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(30.0),
-                color: Colors.deepOrange,
-              ),
-              height: 60.0,
-              width: 300,
-              child: MaterialButton(
-                onPressed: () {
-                  try {
-                    FirebaseAuth.instance.signOut();
-                    // Perform any additional tasks after sign out
-                  } catch (e) {
-                    print('Failed to sign out: $e');
-                  }
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (context) => Welcome()),
-                  );
-                },
-                child: Text(
-                  "SignOut",
-                  style: TextStyle(color: Colors.white),
-                ),
-              ),
-            ),
-          )
+                          }),
+                        )))
+              ]))
         ]))));
   }
+}
 
-  Widget specialForYou() {
-    return Container(
-      width: 250,
-      decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(15),
-          image: const DecorationImage(
-              image: AssetImage('assets/images/Image Banner 2.png'),
-              fit: BoxFit.cover)),
-      child: Padding(
-        padding: const EdgeInsets.all(20.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              "Smart phone",
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-              ),
+Widget specialForYou() {
+  return Container(
+    width: 250,
+    decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(15),
+        image: const DecorationImage(
+            image: AssetImage('assets/images/Image Banner 2.png'),
+            fit: BoxFit.cover)),
+    child: Padding(
+      padding: const EdgeInsets.all(20.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            "Smart phone",
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
             ),
-            Text(
-              "18 Brands",
-              style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 15,
-                  fontWeight: FontWeight.bold),
-            )
-          ],
-        ),
+          ),
+          Text(
+            "18 Brands",
+            style: TextStyle(
+                color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold),
+          )
+        ],
       ),
-    );
-  }
+    ),
+  );
+}
 
 // Widget popularProduct(Fav view) {
 //   return Column(
@@ -525,4 +528,3 @@ class _HomeState extends State<Home> {
 //     ],
 //   );
 // }
-}

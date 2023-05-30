@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:easy_splash_screen/easy_splash_screen.dart';
+import 'package:ecommerce/ApiTest.dart';
 
 import 'package:ecommerce/Forgotpassword.dart';
 import 'package:ecommerce/Home.dart';
@@ -15,6 +16,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import 'Welcomeback.dart';
+import 'animation2.dart';
 import 'complete.dart';
 
 void main() async {
@@ -26,12 +28,20 @@ final navigatorKey=GlobalKey<NavigatorState>();
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
-  // This widget is the root of your application.
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      home: Home(),
+      home: animation(),
+      theme: ThemeData(
+        brightness: Brightness.light,
+
+      ),
+      darkTheme: ThemeData(
+        brightness: Brightness.dark,
+
+      ),
       navigatorKey: navigatorKey,
     );
   }
@@ -56,7 +66,7 @@ class Splash extends StatelessWidget {
             fontWeight: FontWeight.bold,
             color: Colors.deepOrange,
           )),
-      navigator: Home(),
+      navigator: Welcome(),
       durationInSeconds: 5,
     );
   }
